@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plant Watering Scheduler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .plant-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .needs-water {
+            background-color: #ffe6e6;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        .notification-banner {
+            background-color: #f0f8ff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border: 1px solid #add8e6;
+        }
+        .edit-mode .display-view {
+            display: none;
+        }
+        .edit-mode .edit-view {
+            display: block;
+        }
+        .display-view .edit-view {
+            display: none;
+        }
+        .button-group {
+            margin-top: 10px;
+        }
+        .button-group button {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Plant Watering Scheduler</h1>
+    
+    <div class="notification-banner" id="wateringNotifications">
+        <h2>Today's Watering Schedule</h2>
+        <div id="plantsToWater"></div>
+    </div>
+
+    <h2>Add New Plant</h2>
+    <div>
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" id="plantName">
+        </div>
+        <div class="form-group">
+            <label>Description:</label>
+            <textarea id="plantDescription"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Watering Frequency (days):</label>
+            <input type="number" id="wateringFrequency" min="1">
+        </div>
+        <button onclick="addPlant()">Add Plant</button>
+    </div>
+
+    <h2>My Plants</h2>
+    <div id="plantsList"></div>
+
+    <script>
+        function loadPlants() {
+            fetch('/api/plants')
+                .then(response => response.json())
+                .then(plants => {
+                    const plantsList = document.getElementById('plantsList');
+                    plantsList.innerHTML = '';
+                    plants.forEach(plant => {
+                        const daysFromLastWatering = plant.last_watered ? 
+                            Math.floor((new Date() - new Date(plant.last_watered)) / (1000 * 60 * 60 * 24)) : 
+                            Infinity;
+                        
+                        const needsWater = daysFromLastWatering >= plant.watering_frequency;
+                        
+                        const plantCard = document.createElement('div');
+                        plantCard.className = `plant-card ${needsWater ? 'needs-water' : ''}`;
+                        plantCard.innerHTML = `
+                            <div class="display-view">
+                                <h3>${plant.name}</h3>
+                                <p>${plant.description}</p>
+                                <p>Watering Frequency: Every ${plant.watering_frequency} days</p>
+                                <p>Last Watered: ${plant.last_watered || 'Never'}</p>
+                                <div class="button-group">
+                                    <button onclick="waterPlant(${plant.id})">Water Now</button>
+                                    <button onclick="editPlant(${plant.id})">Edit</button>
+                                    <button onclick="deletePlant(${plant.id})">Delete</button>
+                                </div>
+                            </div>
+                            <div class="edit-view">
+                                <div class="form-group">
+                                    <label>Name:</label>
+                                    <input type="text" id="edit-name-${plant.id}" value="${plant.name}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Description:</label>
+                                    <textarea id="edit-description-${plant.id}">${plant.description}</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Watering Frequency (days):</label>
+                                    <input type="number" id="edit-frequency-${plant.id}" value="${plant.watering_frequency}" min="1">
+                                </div>
+                                <div class="button-group">
+                                    <button onclick="savePlant(${plant.id})">Save</button>
+                                    <button onclick="cancelEdit(${plant.id})">Cancel</button>
+                                </div>
+                            </div>
+                        `;
+                        plantsList.appendChild(plantCard);
+                    });
+                });
+        }
+
+        function checkPlantsNeedingWater() {
+            fetch('/api/plants/needs-watering')
+                .then(response => response.json())
+                .then(plants => {
+                    const notificationsDiv = document.getElementById('plantsToWater');
+                    if (plants.length === 0) {
+                        notificationsDiv.innerHTML = '<p>No plants need watering today! 🌿</p>';
+                    } else {
+                        notificationsDiv.innerHTML = '<p>These plants need watering today:</p>' +
+                            plants.map(plant => `<p>• ${plant.name}</p>`).join('');
+                    }
+                });
+        }
+
+        function addPlant() {
+            const name = document.getElementById('plantName').value;
+            const description = document.getElementById('plantDescription').value;
+            const frequency = parseInt(document.getElementById('wateringFrequency').value);
+
+            if (!name || !frequency) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            fetch('/api/plants', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    watering_frequency: frequency
+                }),
+            })
+            .then(response => response.json())
+            .then(() => {
+                document.getElementById('plantName').value = '';
+                document.getElementById('plantDescription').value = '';
+                document.getElementById('wateringFrequency').value = '';
+                loadPlants();
+                checkPlantsNeedingWater();
+            });
+        }
+
+        function waterPlant(id) {
+            fetch(`/api/plants/${id}/water`, {
+                method: 'POST',
+            })
+            .then(() => {
+                loadPlants();
+                checkPlantsNeedingWater();
+            });
+        }
+
+        function deletePlant(id) {
+            if (confirm('Are you sure you want to delete this plant?')) {
+                fetch(`/api/plants/${id}`, {
+                    method: 'DELETE',
+                })
+                .then(() => {
+                    loadPlants();
+                    checkPlantsNeedingWater();
+                });
+            }
+        }
+
+        function editPlant(id) {
+            const plantCard = document.querySelector(`#plantsList .plant-card:has(#edit-name-${id})`);
+            plantCard.classList.add('edit-mode');
+        }
+
+        function cancelEdit(id) {
+            const plantCard = document.querySelector(`#plantsList .plant-card:has(#edit-name-${id})`);
+            plantCard.classList.remove('edit-mode');
+        }
+
+        function savePlant(id) {
+            const name = document.getElementById(`edit-name-${id}`).value;
+            const description = document.getElementById(`edit-description-${id}`).value;
+            const frequency = parseInt(document.getElementById(`edit-frequency-${id}`).value);
+
+            if (!name || !frequency) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            fetch(`/api/plants/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description,
+                    watering_frequency: frequency
+                }),
+            })
+            .then(response => response.json())
+            .then(() => {
+                loadPlants();
+                checkPlantsNeedingWater();
+            });
+        }
+
+        // Load initial data
+        loadPlants();
+        checkPlantsNeedingWater();
+
+        // Check for plants needing water every hour
+        setInterval(checkPlantsNeedingWater, 3600000);
+    </script>
+</body>
+</html>
