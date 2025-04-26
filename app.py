@@ -8,19 +8,9 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-def init_db():
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS plants
-        (id INTEGER PRIMARY KEY AUTOINCREMENT,
-         name TEXT NOT NULL,
-         description TEXT,
-         watering_frequency INTEGER NOT NULL,
-         last_watered DATE)
-    ''')
-    conn.commit()
-    conn.close()
+from plant_repository import PlantRepository
+
+repo = PlantRepository()
 
 @app.route('/')
 def home():
@@ -28,62 +18,31 @@ def home():
 
 @app.route('/api/plants', methods=['GET'])
 def get_plants():
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM plants')
-    plants = [{'id': row[0], 'name': row[1], 'description': row[2], 
-               'watering_frequency': row[3], 'last_watered': row[4]} 
-              for row in c.fetchall()]
-    conn.close()
+    plants = repo.get_all_plants()
     return jsonify(plants)
 
 @app.route('/api/plants', methods=['POST'])
 def add_plant():
     data = request.json
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO plants (name, description, watering_frequency, last_watered)
-        VALUES (?, ?, ?, ?)
-    ''', (data['name'], data['description'], data['watering_frequency'], 
-          datetime.now().strftime('%Y-%m-%d')))
-    conn.commit()
-    plant_id = c.lastrowid
-    conn.close()
+    plant_id = repo.add_plant(data['name'], data['description'], data['watering_frequency'])
     return jsonify({'id': plant_id, **data})
 
 @app.route('/api/plants/<int:plant_id>', methods=['PUT'])
 def update_plant(plant_id):
     data = request.json
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    c.execute('''
-        UPDATE plants 
-        SET name = ?, description = ?, watering_frequency = ?
-        WHERE id = ?
-    ''', (data['name'], data['description'], data['watering_frequency'], plant_id))
-    conn.commit()
-    conn.close()
+    repo.update_plant(plant_id, data['name'], data['description'], data['watering_frequency'])
     return jsonify({'success': True})
 
 @app.route('/api/plants/<int:plant_id>', methods=['DELETE'])
 def delete_plant(plant_id):
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    c.execute('DELETE FROM plants WHERE id = ?', (plant_id,))
-    conn.commit()
-    conn.close()
+    repo.delete_plant(plant_id)
     return jsonify({'success': True})
 
 @app.route('/api/plants/<int:plant_id>/last-watered', methods=['POST'])
 def set_last_watered(plant_id):
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
     data = request.json
     last_watered = data.get('last_watered')
-    c.execute('UPDATE plants SET last_watered = ? WHERE id = ?', (last_watered, plant_id))
-    conn.commit()
-    conn.close()
+    repo.set_last_watered(plant_id, last_watered)
     return jsonify({'success': True})
 
 @app.route('/api/plants/<int:plant_id>/water', methods=['POST'])
@@ -120,6 +79,6 @@ def get_plants_needing_water():
     return jsonify(needs_water)
 
 if __name__ == '__main__':
-    init_db()
+    repo.init_db()
     port = int(os.environ.get('PORT', 50309))
     app.run(host='0.0.0.0', port=port)
