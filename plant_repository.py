@@ -4,8 +4,12 @@ from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from abc import ABC, abstractmethod
+import logging
 
 def GetPlantRepository():
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"→ ENV           = {os.getenv('ENV')}")
+    logging.info(f"→ DATABASE_URL  = {os.getenv('DATABASE_URL')[:30]}…")
     if os.getenv('ENV', 'dev') == 'prod':
         return PostgresPlantRepository()
     else:
