@@ -1,5 +1,6 @@
 import sqlite3
 import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from abc import ABC, abstractmethod
@@ -39,13 +40,19 @@ class PostgresPlantRepository(PlantRepository):
     def __init__(self):
         self.db_url = os.getenv('DATABASE_URL')
 
-    def _connect(self):
+    def _connect(self, dict_cursor=False):
+        """
+        Open a new DB connection.
+        If dict_cursor=True, rows come back as dicts (RealDictCursor).
+        """
+        if dict_cursor:
+            return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
         return psycopg2.connect(self.db_url)
 
     def init_db(self):
         conn = self._connect()
-        c = conn.cursor()
-        c.execute('''
+        cur = conn.cursor()
+        cur.execute('''
             CREATE TABLE IF NOT EXISTS plants (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -58,40 +65,46 @@ class PostgresPlantRepository(PlantRepository):
         conn.close()
 
     def get_all_plants(self):
-        conn = self._connect()
-        c = conn.cursor()
-        c.execute('SELECT * FROM plants')
-        plants = [{'id': row[0], 'name': row[1], 'description': row[2], 
-                   'watering_frequency': row[3], 'last_watered': row[4]} 
-                  for row in c.fetchall()]
+        conn = self._connect(dict_cursor=True)
+        cur = conn.cursor()
+        cur.execute('SELECT id, name, description, watering_frequency, last_watered FROM plants')
+        plants = cur.fetchall()  # list of dicts via RealDictCursor
         conn.close()
         return plants
 
     def add_plant(self, name, description, watering_frequency):
         conn = self._connect()
-        c = conn.cursor()
-        c.execute('''
+        cur = conn.cursor()
+        cur.execute('''
             INSERT INTO plants (name, description, watering_frequency, last_watered)
             VALUES (%s, %s, %s, %s)
-        ''', (name, description, watering_frequency, datetime.now().strftime('%Y-%m-%d')))
+            RETURNING id
+        ''', (
+            name,
+            description,
+            watering_frequency,
+            datetime.now().date()
+        ))
+        plant_id = cur.fetchone()[0]
         conn.commit()
-        plant_id = c.fetchone()[0]
         conn.close()
         return plant_id
 
     def delete_plant(self, plant_id):
         conn = self._connect()
-        c = conn.cursor()
-        c.execute('DELETE FROM plants WHERE id = %s', (plant_id,))
+        cur = conn.cursor()
+        cur.execute('DELETE FROM plants WHERE id = %s', (plant_id,))
         conn.commit()
         conn.close()
 
     def update_plant(self, plant_id, name, description, watering_frequency):
         conn = self._connect()
-        c = conn.cursor()
-        c.execute('''
-            UPDATE plants 
-            SET name = %s, description = %s, watering_frequency = %s
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE plants
+            SET name = %s,
+                description = %s,
+                watering_frequency = %s
             WHERE id = %s
         ''', (name, description, watering_frequency, plant_id))
         conn.commit()
@@ -99,16 +112,16 @@ class PostgresPlantRepository(PlantRepository):
 
     def water_plant(self, plant_id):
         conn = self._connect()
-        c = conn.cursor()
-        today = datetime.now().strftime('%Y-%m-%d')
-        c.execute('UPDATE plants SET last_watered = %s WHERE id = %s', (today, plant_id))
+        cur = conn.cursor()
+        today = datetime.now().date()
+        cur.execute('UPDATE plants SET last_watered = %s WHERE id = %s', (today, plant_id))
         conn.commit()
         conn.close()
 
     def set_last_watered(self, plant_id, last_watered):
         conn = self._connect()
-        c = conn.cursor()
-        c.execute('UPDATE plants SET last_watered = %s WHERE id = %s', (last_watered, plant_id))
+        cur = conn.cursor()
+        cur.execute('UPDATE plants SET last_watered = %s WHERE id = %s', (last_watered, plant_id))
         conn.commit()
         conn.close()
 
