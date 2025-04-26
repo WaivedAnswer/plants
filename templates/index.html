@@ -74,6 +74,31 @@
     <div id="plantsList"></div>
 
     <script>
+        function showSetLastWatered(id) {
+            const setLastWateredDiv = document.querySelector(`#plantsList .plant-card:has(#last-watered-${id}) .set-last-watered`);
+            setLastWateredDiv.style.display = 'block';
+        }
+
+        function cancelSetLastWatered(id) {
+            const setLastWateredDiv = document.querySelector(`#plantsList .plant-card:has(#last-watered-${id}) .set-last-watered`);
+            setLastWateredDiv.style.display = 'none';
+        }
+
+        function setLastWatered(id) {
+            const lastWateredDate = document.getElementById(`last-watered-${id}`).value;
+            fetch(`/api/plants/${id}/last-watered`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ last_watered: lastWateredDate }),
+            })
+            .then(() => {
+                loadPlants();
+                cancelSetLastWatered(id);
+            });
+        }
+
         function loadPlants() {
             fetch('/api/plants')
                 .then(response => response.json())
@@ -99,6 +124,12 @@
                                     <button onclick="waterPlant(${plant.id})">Water Now</button>
                                     <button onclick="editPlant(${plant.id})">Edit</button>
                                     <button onclick="deletePlant(${plant.id})">Delete</button>
+                                    <button onclick="showSetLastWatered(${plant.id})">Set Last Watered</button>
+                                </div>
+                                <div class="set-last-watered" style="display: none;">
+                                    <input type="date" id="last-watered-${plant.id}">
+                                    <button onclick="setLastWatered(${plant.id})">Submit</button>
+                                    <button onclick="cancelSetLastWatered(${plant.id})">Cancel</button>
                                 </div>
                             </div>
                             <div class="edit-view">

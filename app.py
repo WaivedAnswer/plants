@@ -75,6 +75,17 @@ def delete_plant(plant_id):
     conn.close()
     return jsonify({'success': True})
 
+@app.route('/api/plants/<int:plant_id>/last-watered', methods=['POST'])
+def set_last_watered(plant_id):
+    conn = sqlite3.connect('plants.db')
+    c = conn.cursor()
+    data = request.json
+    last_watered = data.get('last_watered')
+    c.execute('UPDATE plants SET last_watered = ? WHERE id = ?', (last_watered, plant_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
 @app.route('/api/plants/<int:plant_id>/water', methods=['POST'])
 def water_plant(plant_id):
     conn = sqlite3.connect('plants.db')
