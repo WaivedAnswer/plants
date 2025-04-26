@@ -4,13 +4,17 @@ import sqlite3
 from datetime import datetime, timedelta
 import json
 import os
+from dotenv import load_dotenv
+from plant_repository import PlantRepository, GetPlantRepository
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-from plant_repository import PlantRepository
 
-repo = PlantRepository()
+repo = GetPlantRepository()
 
 @app.route('/')
 def home():
