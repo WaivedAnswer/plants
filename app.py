@@ -5,9 +5,11 @@ from datetime import datetime, timedelta
 import json
 import os
 from plant_repository import PlantRepository, GetPlantRepository
+import logging
 
 # Load environment variables from .env file
 
+logging.info(f"→ DB_ENV           = {os.getenv('DB_ENV')}")
 if os.getenv('DB_ENV', 'dev') == 'dev':
     from dotenv import load_dotenv
     load_dotenv()
