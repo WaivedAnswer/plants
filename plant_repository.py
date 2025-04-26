@@ -8,9 +8,9 @@ import logging
 
 def GetPlantRepository():
     logging.basicConfig(level=logging.INFO)
-    logging.info(f"→ ENV           = {os.getenv('ENV')}")
+    logging.info(f"→ DB_ENV           = {os.getenv('DB_ENV')}")
     logging.info(f"→ DATABASE_URL  = {os.getenv('DATABASE_URL')[:30]}…")
-    if os.getenv('ENV', 'dev') == 'prod':
+    if os.getenv('DB_ENV', 'dev') == 'prod':
         return PostgresPlantRepository()
     else:
         return SQLitePlantRepository()
