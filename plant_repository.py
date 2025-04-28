@@ -4,12 +4,8 @@ from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from abc import ABC, abstractmethod
-import logging
 
 def GetPlantRepository():
-    logging.basicConfig(level=logging.INFO)
-    logging.info(f"→ DB_ENV           = {os.getenv('DB_ENV')}")
-    logging.info(f"→ DATABASE_URL  = {os.getenv('DATABASE_URL')[:30]}…")
     if os.getenv('DB_ENV', 'dev') == 'prod':
         return PostgresPlantRepository()
     else:
@@ -38,6 +34,10 @@ class PlantRepository(ABC):
 
     @abstractmethod
     def set_last_watered(self, plant_id, last_watered):
+        pass
+
+    @abstractmethod
+    def needs_watering(self):
         pass
 
 class PostgresPlantRepository(PlantRepository):
@@ -129,6 +129,22 @@ class PostgresPlantRepository(PlantRepository):
         conn.commit()
         conn.close()
 
+    def needs_watering(self):
+        plants=self.get_all_plants()
+        needs_water = []
+        
+        for plant in plants:
+            last_watered = datetime.strptime(plant[4], '%Y-%m-%d') if plant[4] else None
+            if not last_watered or \
+            (datetime.now() - last_watered).days >= plant[3]:
+                needs_water.append({
+                    'id': plant[0],
+                    'name': plant[1],
+                    'description': plant[2],
+                    'watering_frequency': plant[3],
+                    'last_watered': plant[4]
+                })
+
 class SQLitePlantRepository(PlantRepository):
     def __init__(self, db_path='plants.db'):
         self.db_path = db_path
@@ -200,6 +216,27 @@ class SQLitePlantRepository(PlantRepository):
         c = conn.cursor()
         c.execute('UPDATE plants SET last_watered = ? WHERE id = ?', (last_watered, plant_id))
         conn.commit()
+        conn.close()
+
+    def needs_watering(self):
+        conn = sqlite3.connect('plants.db')
+        c = conn.cursor()
+        c.execute('SELECT * FROM plants')
+        plants = c.fetchall()
+        needs_water = []
+        
+        for plant in plants:
+            last_watered = datetime.strptime(plant[4], '%Y-%m-%d') if plant[4] else None
+            if not last_watered or \
+            (datetime.now() - last_watered).days >= plant[3]:
+                needs_water.append({
+                    'id': plant[0],
+                    'name': plant[1],
+                    'description': plant[2],
+                    'watering_frequency': plant[3],
+                    'last_watered': plant[4]
+                })
+        
         conn.close()
 
     

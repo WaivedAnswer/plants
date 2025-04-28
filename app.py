@@ -9,7 +9,6 @@ import logging
 
 # Load environment variables from .env file
 
-logging.info(f"→ DB_ENV           = {os.getenv('DB_ENV')}")
 if os.getenv('DB_ENV', 'dev') == 'dev':
     from dotenv import load_dotenv
     load_dotenv()
@@ -55,14 +54,10 @@ def set_last_watered(plant_id):
 
 @app.route('/api/plants/<int:plant_id>/water', methods=['POST'])
 def water_plant(plant_id):
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    today = datetime.now().strftime('%Y-%m-%d')
-    c.execute('UPDATE plants SET last_watered = ? WHERE id = ?', (today, plant_id))
-    conn.commit()
-    conn.close()
+    repo.water_plant(plant_id)
     return jsonify({'success': True})
 
+#TODO fix this endpoint. - missing multiple plants
 @app.route('/api/plants/needs-watering', methods=['GET'])
 def get_plants_needing_water():
     conn = sqlite3.connect('plants.db')
