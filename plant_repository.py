@@ -1,4 +1,3 @@
-import logging
 import sqlite3
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -135,12 +134,11 @@ class PostgresPlantRepository(PlantRepository):
         needs_water = []
         
         for plant in plants:
-            last_watered = datetime.strptime(plant["last_watered"], '%Y-%m-%d') if plant["last_watered"] else None
-            print(plant, last_watered, datetime.now())
+            last_watered = plant["last_watered"] if plant["last_watered"] else None
             if not last_watered:
                 needs_water.append(plant)
             else:
-                days_since = (datetime.now() - last_watered).days
+                days_since = (datetime.now().date() - last_watered).days
                 if days_since >= plant["watering_frequency"]:
                     needs_water.append(plant)
         return needs_water
