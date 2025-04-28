@@ -60,25 +60,7 @@ def water_plant(plant_id):
 #TODO fix this endpoint. - missing multiple plants
 @app.route('/api/plants/needs-watering', methods=['GET'])
 def get_plants_needing_water():
-    conn = sqlite3.connect('plants.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM plants')
-    plants = c.fetchall()
-    needs_water = []
-    
-    for plant in plants:
-        last_watered = datetime.strptime(plant[4], '%Y-%m-%d') if plant[4] else None
-        if not last_watered or \
-           (datetime.now() - last_watered).days >= plant[3]:
-            needs_water.append({
-                'id': plant[0],
-                'name': plant[1],
-                'description': plant[2],
-                'watering_frequency': plant[3],
-                'last_watered': plant[4]
-            })
-    
-    conn.close()
+    needs_water = repo.get_all_plants()
     return jsonify(needs_water)
 
 if __name__ == '__main__':
