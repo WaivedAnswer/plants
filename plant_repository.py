@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -134,16 +135,15 @@ class PostgresPlantRepository(PlantRepository):
         needs_water = []
         
         for plant in plants:
-            last_watered = datetime.strptime(plant[4], '%Y-%m-%d') if plant[4] else None
-            if not last_watered or \
-            (datetime.now() - last_watered).days >= plant[3]:
-                needs_water.append({
-                    'id': plant[0],
-                    'name': plant[1],
-                    'description': plant[2],
-                    'watering_frequency': plant[3],
-                    'last_watered': plant[4]
-                })
+            last_watered = datetime.strptime(plant["last_watered"], '%Y-%m-%d') if plant["last_watered"] else None
+            print(plant, last_watered, datetime.now())
+            if not last_watered:
+                needs_water.append(plant)
+            else:
+                days_since = (datetime.now() - last_watered).days
+                if days_since >= plant["watering_frequency"]:
+                    needs_water.append(plant)
+        return needs_water
 
 class SQLitePlantRepository(PlantRepository):
     def __init__(self, db_path='plants.db'):
@@ -219,24 +219,18 @@ class SQLitePlantRepository(PlantRepository):
         conn.close()
 
     def needs_watering(self):
-        conn = sqlite3.connect('plants.db')
-        c = conn.cursor()
-        c.execute('SELECT * FROM plants')
-        plants = c.fetchall()
+        plants=self.get_all_plants()
         needs_water = []
         
         for plant in plants:
-            last_watered = datetime.strptime(plant[4], '%Y-%m-%d') if plant[4] else None
-            if not last_watered or \
-            (datetime.now() - last_watered).days >= plant[3]:
-                needs_water.append({
-                    'id': plant[0],
-                    'name': plant[1],
-                    'description': plant[2],
-                    'watering_frequency': plant[3],
-                    'last_watered': plant[4]
-                })
-        
-        conn.close()
+            last_watered = datetime.strptime(plant["last_watered"], '%Y-%m-%d') if plant["last_watered"] else None
+            if not last_watered:
+                needs_water.append(plant)
+            else:
+                days_since = (datetime.now() - last_watered).days
+                if days_since >= plant["watering_frequency"]:
+                    needs_water.append(plant)
+        return needs_water
+                
 
     

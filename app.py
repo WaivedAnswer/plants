@@ -60,7 +60,7 @@ def water_plant(plant_id):
 #TODO fix this endpoint. - missing multiple plants
 @app.route('/api/plants/needs-watering', methods=['GET'])
 def get_plants_needing_water():
-    needs_water = repo.get_all_plants()
+    needs_water = repo.needs_watering()
     return jsonify(needs_water)
 
 if __name__ == '__main__':
